@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
+#include <ctype.h>
 #include <windows.h>
 
 struct Filme {
@@ -15,12 +16,10 @@ struct Filme {
 
 typedef struct Filme Filme;
 
-// Cria uma nova lista vazia
 Filme* criarLista() {
     return NULL;
 }
 
-// Insere um filme no início da lista
 Filme* inserirFilme(Filme* lista, char* nome, int ano, int minutagem, char* genero) {
     Filme* novoFilme = (Filme*) malloc(sizeof(Filme));
     strcpy(novoFilme->nome, nome);
@@ -36,33 +35,44 @@ Filme* inserirFilme(Filme* lista, char* nome, int ano, int minutagem, char* gene
     return novoFilme;
 }
 
-// Ordena os filmes da lista pela ano
 void ordenarFilmes(Filme* lista) {
-    Filme *i, *j;
-    Filme aux;
+    if (lista == NULL) return;
 
-    for (i = lista; i != NULL; i = i->prox) {
-        for (j = i->prox; j != NULL; j = j->prox) {
-            if (i->ano > j->ano) {
-                aux = *i;
-                *i = *j;
-                *j = aux;
+    int trocado;
+    Filme *i, *j = NULL;
 
-                // Ajusta os ponteiros de prox e ant
-                if (i->prox == j) {
-                    i->prox = j->prox;
-                    j->prox = i;
-                    j->ant = i->ant;
-                    if (i->ant != NULL) i->ant->prox = j;
-                    if (j->prox != NULL) j->prox->ant = i;
-                    i->ant = j;
-                }
+    do {
+        trocado = 0;
+        i = lista;
+
+        while (i->prox != j) {
+            if (i->ano > i->prox->ano) {
+                char nomeAux[100], generoAux[50];
+                int anoAux, minutagemAux;
+
+                strcpy(nomeAux, i->nome);
+                anoAux = i->ano;
+                minutagemAux = i->minutagem;
+                strcpy(generoAux, i->genero);
+
+                strcpy(i->nome, i->prox->nome);
+                i->ano = i->prox->ano;
+                i->minutagem = i->prox->minutagem;
+                strcpy(i->genero, i->prox->genero);
+
+                strcpy(i->prox->nome, nomeAux);
+                i->prox->ano = anoAux;
+                i->prox->minutagem = minutagemAux;
+                strcpy(i->prox->genero, generoAux);
+
+                trocado = 1;
             }
+            i = i->prox;
         }
-    }
+        j = i;
+    } while (trocado);
 }
 
-// Lista os filmes em ordem normal
 void listarFilmes(Filme* lista) {
     int i = 1;
     system("cls");
@@ -76,13 +86,12 @@ void listarFilmes(Filme* lista) {
         printf("Gênero: %s\n\n", temp->genero);
     }
     system("pause");
+    system("cls");
 }
 
-// Lista os filmes em ordem reversa
 void listarFilmesReverso(Filme* lista) {
     Filme* temp = lista;
 
-    // Vai até o último filme
     while (temp != NULL && temp->prox != NULL) {
         temp = temp->prox;
     }
@@ -90,7 +99,6 @@ void listarFilmesReverso(Filme* lista) {
     int i = 1;
     system("cls");
     printf("<<Listar Filmes em Ordem Reversa>>\n\n");
-    // Percorre a lista de trás para frente
     while (temp != NULL) {
         printf("<<Filme %d>>\n\n", i++);
         printf("Nome: %s\n", temp->nome);
@@ -100,9 +108,16 @@ void listarFilmesReverso(Filme* lista) {
         temp = temp->ant;
     }
     system("pause");
+    system("cls");
 }
 
-// Função para buscar filme e editar ou excluir
+void BuscaMinuscula(char* str) {
+    int i;
+	for (i=0;str[i];i++){
+        str[i] = tolower(str[i]);
+    }
+}
+
 void buscarFilme(Filme* lista) {
     int opcao, local = -1;
     char nomeBusca[100];
@@ -127,8 +142,12 @@ void buscarFilme(Filme* lista) {
             printf("Informe o Nome do Filme Desejado: ");
             fgets(nomeBusca, 100, stdin);
             nomeBusca[strcspn(nomeBusca, "\n")] = '\0';
+            BuscaMinuscula(nomeBusca);
             while (temp != NULL) {
-                if (strcmp(temp->nome, nomeBusca) == 0) {
+                char nomeTemp[100];
+                strcpy(nomeTemp, temp->nome);
+                BuscaMinuscula(nomeTemp);
+                if (strcmp(nomeTemp, nomeBusca) == 0) {
                     local = 1;
                     break;
                 }
@@ -163,8 +182,12 @@ void buscarFilme(Filme* lista) {
             printf("Informe o Gênero do Filme Desejado: ");
             fgets(generoBusca, 50, stdin);
             generoBusca[strcspn(generoBusca, "\n")] = '\0';
+            BuscaMinuscula(generoBusca);
             while (temp != NULL) {
-                if (strcmp(temp->genero, generoBusca) == 0) {
+                char generoTemp[50];
+                strcpy(generoTemp, temp->genero);
+                BuscaMinuscula(generoTemp);
+                if (strcmp(generoTemp, generoBusca) == 0) {
                     local = 1;
                     break;
                 }
@@ -207,11 +230,11 @@ void buscarFilme(Filme* lista) {
 
             printf("\nFilme atualizado com sucesso!\n");
         } else if (acao == 2) {
-            // Remover filme
+
             if (temp->ant != NULL) {
                 temp->ant->prox = temp->prox;
             } else {
-                lista = temp->prox; // Removendo o primeiro elemento
+                lista = temp->prox;
             }
             if (temp->prox != NULL) {
                 temp->prox->ant = temp->ant;
@@ -224,11 +247,57 @@ void buscarFilme(Filme* lista) {
     }
 
     system("pause");
+    system("cls");
+}
+
+Filme* carregarFilmes() {
+    FILE *arquivo = fopen("filmes.bin", "rb");
+    if (arquivo == NULL) {
+        return NULL;
+    }
+
+    Filme* lista = NULL;
+    Filme* ultimo = NULL;
+    Filme temp;
+
+    while (fread(&temp, sizeof(Filme), 1, arquivo)) {
+        Filme* novoFilme = (Filme*) malloc(sizeof(Filme));
+        *novoFilme = temp;
+        novoFilme->prox = NULL;
+        novoFilme->ant = ultimo;
+
+        if (ultimo != NULL) {
+            ultimo->prox = novoFilme;
+        } else {
+            lista = novoFilme;
+        }
+
+        ultimo = novoFilme;
+    }
+
+    fclose(arquivo);
+    return lista;
+}
+
+void salvarFilmes(Filme* lista) {
+    FILE *arquivo = fopen("filmes.bin", "wb");
+    if (arquivo == NULL) {
+        printf("Erro ao Salvar!\n");
+        return;
+    }
+
+    Filme* temp = lista;
+    while (temp != NULL) {
+        fwrite(temp, sizeof(Filme), 1, arquivo);
+        temp = temp->prox;
+    }
+
+    fclose(arquivo);
 }
 
 void main() {
     setlocale(LC_ALL, "portuguese");
-    Filme* lista = criarLista();
+    Filme* lista = carregarFilmes();
     int opcao;
 
     do {
@@ -265,10 +334,15 @@ void main() {
 
                 lista = inserirFilme(lista, nome, ano, minutagem, genero);
                 ordenarFilmes(lista);
+                
+                printf("\nFilme Inserido com Sucesso!\n");
+                system("pause");
+                system("cls");
                 break;
             }
             case 2:
                 buscarFilme(lista);
+                ordenarFilmes(lista);
                 break;
             case 3:
                 listarFilmes(lista);
@@ -277,7 +351,10 @@ void main() {
                 listarFilmesReverso(lista);
                 break;
             case 0:
-                printf("\nSaindo...\n");
+                printf("\nSalvando Algoritimo, Aguarde...\n");
+                salvarFilmes(lista);
+                Sleep(3000);
+                printf("\nInformações Salvas com Sucesso!\n");
                 break;
             default:
                 printf("Opção inválida! Tente novamente.\n");
